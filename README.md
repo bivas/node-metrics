@@ -12,22 +12,18 @@ tutum/node-metrics
       -e DB_NAME=nodemetrics \
       -e DB_USER=root \
       -e DB_PASS=root \
-      -e COLLECT_PERIOD=60 \
-      -e SERIES_NAME=stats \
       tutum/node-metrics
 ```
 
 **Arguments**
 
 ```
-    COLLECT_PERIOD                  how many seconds to run the metrics collection script, 60 by default.
-    SERIES_NAME                     name of the series in influxdb, "stats" by default
     INFLUXDB_PORT_8086_TCP_ADDR     ip address of influxdb
     INFLUXDB_PORT_8086_TCP_PORT     port number of influxdb
     DB_NAME                         name of the influx database, "nodemetrics" by default
     DB_USER                         user of influxdb, "root" by default
     DB_PASS                         pass of influxdb, "INFLUXDB_ENV_INFLUXDB_INIT_PWD" if specified, "root" by default
-
+    DATA_CLEAN_SINCE                clean old metrics since "1w"(default: 1 week) ago. Please modify crontab.conf accordingly if you change this value
     INFLUXDB_ENV_INFLUXDB_INIT_PWD      Inherited variable from influxdb, changing default password of influxdb
 ```
 
@@ -79,7 +75,11 @@ In order to write metrics to local influxdb container, you can start influxdb li
     docker run -d \
         -p 8084:8084 \
         --name influxdb \
-        -e PRE_CREATE_DB="nodemetrics" \
+        -e PRE_CREATE_DB="cadvisor; nodemetrics" \
         -e SSL_SUPPORT=true \
         tutum/influxdb:latest
 ```
+
+Usage
+-----
+The downsampled data is store in `stats.1m, stats.5m, stats.30m, stats.2h, stats.1d`
