@@ -6,7 +6,7 @@ add_ac() {
         echo "Found existing $5 hours downsampling continuous query, skip"
     else
         echo "About to add $5 downsampling continuous query"
-        ADD_CQ="curl -sGkfL '$2' --data-urlencode 'q=select $3 from stats group by time($4) into stats.$4'"
+        ADD_CQ="curl -sGkfL '$2' --data-urlencode 'q=select $3 time($4) into stats.$4'"
         eval ${ADD_CQ} >/dev/null
         if [ $? -eq 0 ]; then
             echo "$5 downsampling continuous query has been added to container metrics database in influxdb"
@@ -55,14 +55,12 @@ TEST_DB="curl -sGkfL '${NODE_METRICS_URL}' --data-urlencode 'q=list series'"
 eval ${TEST_DB} >/dev/null || exit 1
 echo "Successfully connect to InfluxDB"
 
-echo "export NODE_METRICS_URL=\"${NODE_METRICS_URL}\"" > /env.profile
-echo "export CONTAINER_METRICS_URL=\"${CONTAINER_METRICS_URL}\"" >> /env.profile
 
 # Add contiuous queries to container metrics
 echo "Adding downsampling continuous queries to container metrics database in influxdb:"
 LIST_CQ_STR="curl -sGkfL '${CONTAINER_METRICS_URL}' --data-urlencode 'q=list continuous queries' "
 LIST_CQ=$(eval ${LIST_CQ_STR})
-FIELD="mean(cpu_cumulative_usage) as cpu_cumulative_usage, mean(memory_working_set) as memory_working_set, max(rx_bytes) as rx_bytes, max(tx_bytes) as tx_bytes"
+FIELD="container_name, mean(cpu_cumulative_usage) as cpu_cumulative_usage, mean(memory_working_set) as memory_working_set, max(rx_bytes) as rx_bytes, max(tx_bytes) as tx_bytes from stats group by container_name,"
 
 add_ac "${LIST_CQ}" "${CONTAINER_METRICS_URL}" "${FIELD}" "1m" "1 minute"
 add_ac "${LIST_CQ}" "${CONTAINER_METRICS_URL}" "${FIELD}" "5m" "5 minutes"
@@ -74,10 +72,20 @@ add_ac "${LIST_CQ}" "${CONTAINER_METRICS_URL}" "${FIELD}" "1d" "1 day"
 echo "Adding downsampling continuous queries to node metrics database in influxdb:"
 LIST_CQ_STR="curl -sGkfL '${NODE_METRICS_URL}' --data-urlencode 'q=list continuous queries'"
 LIST_CQ=$(eval ${LIST_CQ_STR})
-FIELD="mean(cpuusage) as cpuusage, mean(diskused) as diskused, max(disksize) as disksize, mean(memused) as memused, max(memsize) as memsize, max(rxbytes) as rxbytes, max(txbytes) as txbytes"
+FIELD="mean(cpuusage) as cpuusage, mean(diskused) as diskused, max(disksize) as disksize, mean(memused) as memused, max(memsize) as memsize, max(rxbytes) as rxbytes, max(txbytes) as txbytes from stats group by"
 
 add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "1m" "1 minute"
 add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "5m" "5 minutes"
 add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "30m" "30 minutes"
 add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "2h" "2 hours"
 add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "1d" "1 day"
+
+# Add crontab
+crontab /crontab.conf
+
+# export env var to file
+echo "export NODE_METRICS_URL=\"${NODE_METRICS_URL}\"" > /env.profile
+echo "export CONTAINER_METRICS_URL=\"${CONTAINER_METRICS_URL}\"" >> /env.profile
+echo "export DATA_CLEAN_SINCE=\"${DATA_CLEAN_SINCE}\"" >> /env.profile
+
+exec cron -f

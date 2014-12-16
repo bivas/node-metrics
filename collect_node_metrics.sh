@@ -19,8 +19,7 @@ CPU_USAGE=$(echo "100 - $(mpstat | tail -n 1 | awk '{print $NF}')" | bc | sed 's
 RX_BYTES=$(ifconfig eth | grep "RX bytes" | head -1 | awk '{print $2}' | cut -d : -f 2)
 TX_BYTES=$(ifconfig eth | grep "RX bytes" | head -1 | awk '{print $6}' | cut -d : -f 2)
 
-DATA="$(sed -e "s/SERIES_NAME/${SERIES_NAME}/" \
-            -e "s/DISK_SIZE/${DISK_SIZE}/" \
+DATA="$(sed -e "s/DISK_SIZE/${DISK_SIZE}/" \
             -e "s/DISK_USED/${DISK_USED}/" \
             -e "s/DISK_FREE/${DISK_FREE}/" \
             -e "s/DISK_PERCENTAGE/${DISK_PERCENTAGE}/" \
