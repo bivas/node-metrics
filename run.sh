@@ -1,5 +1,21 @@
 #!/bin/bash
 
+add_ac() {
+    echo "$1" | grep -F "into stats.2h" >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        echo "Found existing $5 hours downsampling continuous query, skip"
+    else
+        echo "About to add $5 downsampling continuous query"
+        ADD_CQ="curl -sGkfL '$2' --data-urlencode 'q=select $3 from stats group by time($4) into stats.$4'"
+        eval ${ADD_CQ} >/dev/null
+        if [ $? -eq 0 ]; then
+            echo "$5 downsampling continuous query has been added to container metrics database in influxdb"
+        else
+            echo "Failed to $5 downsampling continuous query"
+        fi
+    fi
+}
+
 MNT_PNT="/var/lib/docker"
 
 MSG="$(df -mT /var/lib/docker 2>&1)"
@@ -28,53 +44,40 @@ else
 fi
 
 
-POSTURL="http://${DBHOST}:${DBPORT}/db/${DBNAME}/series?u=${DBUSER}&p=${DBPASS}"
+NODE_METRICS_URL="http://${DBHOST}:${DBPORT}/db/${DBNAME}/series?u=${DBUSER}&p=${DBPASS}"
+CONTAINER_METRICS_URL="http://${DBHOST}:${DBPORT}/db/cadvisor/series?u=${DBUSER}&p=${DBPASS}"
 
+#Testing if IfluxDB is reachable
 echo "Test if InfluxDB is reachable"
-TEST_DB="curl -GkfL '${POSTURL}' --data-urlencode 'q=list series'"
-echo "${TEST_DB}"
-eval ${TEST_DB} || exit 1
-echo ""
+TEST_DB="curl -sGkfL '${CONTAINER_METRICS_URL}' --data-urlencode 'q=list series'"
+eval ${TEST_DB} >/dev/null || exit 1
+TEST_DB="curl -sGkfL '${NODE_METRICS_URL}' --data-urlencode 'q=list series'"
+eval ${TEST_DB} >/dev/null || exit 1
 echo "Successfully connect to InfluxDB"
 
-trap '{ echo "User Interupt."; exit 1; }' INT
-while [ 1 ]
-do
-    MSG="$(df -mT /var/lib/docker 2>&1)"
-    DISK_SIZE=$(echo "${MSG}" | tail -n 1 | awk '{print $3}')
-    DISK_USED=$(echo "${MSG}" | tail -n 1 | awk '{print $4}')
-    DISK_FREE=$(echo -mT "${MSG}" | tail -n 1 | awk '{print $5}')
-    DISK_PERCENTAGE=$(echo "${MSG}" | tail -n 1 | awk '{print $6}'| rev | cut -c 2- | rev )
+echo "export NODE_METRICS_URL=\"${NODE_METRICS_URL}\"" > /env.profile
+echo "export CONTAINER_METRICS_URL=\"${CONTAINER_METRICS_URL}\"" >> /env.profile
 
-    MSG="$(free -m)"
-    MEM_SIZE=$(echo "${MSG}" | awk 'NR==2 {print $2}')
-    MEM_USED=$(echo "${MSG}" | awk 'NR==3 {print $3}')
-    MEM_FREE=$(echo "${MSG}" | awk 'NR==3 {print $4}')
-    SWAP_SIZE=$(echo "${MSG}" | awk 'NR==4 {print $2}')
-    SWAP_USED=$(echo "${MSG}" | awk 'NR==4 {print $3}')
-    SWAP_FREE=$(echo "${MSG}" | awk 'NR==4 {print $4}')
-    CPU_USAGE=$(echo "100 - $(mpstat | tail -n 1 | awk '{print $NF}')" | bc | sed 's/^\./0./')
-    RX_BYTES=$(ifconfig eth | grep "RX bytes" | head -1 | awk '{print $2}' | cut -d : -f 2)
-    TX_BYTES=$(ifconfig eth | grep "RX bytes" | head -1 | awk '{print $6}' | cut -d : -f 2)
+# Add contiuous queries to container metrics
+echo "Adding downsampling continuous queries to container metrics database in influxdb:"
+LIST_CQ_STR="curl -sGkfL '${CONTAINER_METRICS_URL}' --data-urlencode 'q=list continuous queries' "
+LIST_CQ=$(eval ${LIST_CQ_STR})
+FIELD="mean(cpu_cumulative_usage) as cpu_cumulative_usage, mean(memory_working_set) as memory_working_set, max(rx_bytes) as rx_bytes, max(tx_bytes) as tx_bytes"
 
-    DATA="$(sed -e "s/SERIES_NAME/${SERIES_NAME}/" \
-                -e "s/DISK_SIZE/${DISK_SIZE}/" \
-                -e "s/DISK_USED/${DISK_USED}/" \
-                -e "s/DISK_FREE/${DISK_FREE}/" \
-                -e "s/DISK_PERCENTAGE/${DISK_PERCENTAGE}/" \
-                -e "s/MEM_SIZE/${MEM_SIZE}/" \
-                -e "s/MEM_USED/${MEM_USED}/" \
-                -e "s/MEM_FREE/${MEM_FREE}/" \
-                -e "s/SWAP_SIZE/${SWAP_SIZE}/" \
-                -e "s/SWAP_USED/${SWAP_USED}/" \
-                -e "s/SWAP_FREE/${SWAP_FREE}/" \
-                -e "s/CPU_USAGE/${CPU_USAGE}/" \
-                -e "s/RX_BYTES/${RX_BYTES}/" \
-                -e "s/TX_BYTES/${TX_BYTES}/" \
-                metrics.template )"
-    POST="curl -k -X POST -d '${DATA}' '${POSTURL}'"
-    echo "${POST}"
-    eval ${POST}
-    echo "=> Next metrics collecting will be started in ${COLLECT_PERIOD} seconds"
-    sleep ${COLLECT_PERIOD}
-done
+add_ac "${LIST_CQ}" "${CONTAINER_METRICS_URL}" "${FIELD}" "1m" "1 minute"
+add_ac "${LIST_CQ}" "${CONTAINER_METRICS_URL}" "${FIELD}" "5m" "5 minutes"
+add_ac "${LIST_CQ}" "${CONTAINER_METRICS_URL}" "${FIELD}" "30m" "30 minutes"
+add_ac "${LIST_CQ}" "${CONTAINER_METRICS_URL}" "${FIELD}" "2h" "2 hours"
+add_ac "${LIST_CQ}" "${CONTAINER_METRICS_URL}" "${FIELD}" "1d" "1 day"
+
+# Add contiuous queries to node metrics
+echo "Adding downsampling continuous queries to node metrics database in influxdb:"
+LIST_CQ_STR="curl -sGkfL '${NODE_METRICS_URL}' --data-urlencode 'q=list continuous queries'"
+LIST_CQ=$(eval ${LIST_CQ_STR})
+FIELD="mean(cpuusage) as cpuusage, mean(diskused) as diskused, max(disksize) as disksize, mean(memused) as memused, max(memsize) as memsize, max(rxbytes) as rxbytes, max(txbytes) as txbytes"
+
+add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "1m" "1 minute"
+add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "5m" "5 minutes"
+add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "30m" "30 minutes"
+add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "2h" "2 hours"
+add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "1d" "1 day"
