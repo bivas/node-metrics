@@ -6,7 +6,7 @@ tutum/node-metrics
 ```
     docker run -d \
       -v /var/lib/docker:/var/lib/docker:rw \
-      -e INFLUXDB_PORT_8086_TCP_ADDR=172.17.0.17 \
+      -e INFLUXDB_PORT_8086_TCP_ADDR=127.0.0.1 \
       -e INFLUXDB_PORT_8086_TCP_PORT=8086 \
       --net host \
       -e DB_NAME=nodemetrics \

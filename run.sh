@@ -80,12 +80,16 @@ add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "30m" "30 minutes"
 add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "2h" "2 hours"
 add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "1d" "1 day"
 
-# Add crontab
-crontab /crontab.conf
 
 # export env var to file
 echo "export NODE_METRICS_URL=\"${NODE_METRICS_URL}\"" > /env.profile
 echo "export CONTAINER_METRICS_URL=\"${CONTAINER_METRICS_URL}\"" >> /env.profile
 echo "export DATA_CLEAN_SINCE=\"${DATA_CLEAN_SINCE}\"" >> /env.profile
 
-exec cron -f
+# Add crontab
+echo "Starting cron daemon"
+crontab /crontab.conf
+crontab -l
+cron
+touch /var/log/metrics.log
+tail -f /var/log/metrics.log

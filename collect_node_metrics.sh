@@ -19,6 +19,10 @@ CPU_USAGE=$(echo "100 - $(mpstat | tail -n 1 | awk '{print $NF}')" | bc | sed 's
 RX_BYTES=$(ifconfig eth | grep "RX bytes" | head -1 | awk '{print $2}' | cut -d : -f 2)
 TX_BYTES=$(ifconfig eth | grep "RX bytes" | head -1 | awk '{print $6}' | cut -d : -f 2)
 
+RX_BYTES="${RX_BYTES:-"0"}"
+TX_BYTES="${TX_BYTES:-"0"}"
+
+
 DATA="$(sed -e "s/DISK_SIZE/${DISK_SIZE}/" \
             -e "s/DISK_USED/${DISK_USED}/" \
             -e "s/DISK_FREE/${DISK_FREE}/" \
@@ -32,8 +36,9 @@ DATA="$(sed -e "s/DISK_SIZE/${DISK_SIZE}/" \
             -e "s/CPU_USAGE/${CPU_USAGE}/" \
             -e "s/RX_BYTES/${RX_BYTES}/" \
             -e "s/TX_BYTES/${TX_BYTES}/" \
-            metrics.template )"
+            /metrics.template )"
 POST="curl -k -X POST -d '${DATA}' '${NODE_METRICS_URL}'"
-echo "${POST}"
+echo -n "$(date): Sending node metrics to influxdb. "
+echo -n "${DATA}"
 eval ${POST}
-echo "=> Next metrics collecting will be started in ${COLLECT_PERIOD} seconds"
+echo ""
