@@ -5,7 +5,9 @@ RUN apt-get update && apt-get install -y sysstat bc
 
 ADD metrics.template /metrics.template
 ADD crontab.conf /crontab.conf
-ADD *.sh /
+ADD run.sh /run.sh
+ADD clean_metrics_data.sh /clean_metrics_data.sh
+ADD collect_node_metrics.sh /collect_node_metrics.sh
 RUN chmod +x /*.sh
 
 ENV DB_NAME nodemetrics
