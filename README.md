@@ -5,21 +5,19 @@ tutum/node-metrics
 
 ```
     docker run -d \
-      -v /var/lib/docker:/var/lib/docker:rw \
-      -e INFLUXDB_PORT_8086_TCP_ADDR=127.0.0.1 \
-      -e INFLUXDB_PORT_8086_TCP_PORT=8086 \
-      --net host \
+      -v /var/lib/docker:/var/lib/docker:r \
+      -v /sys:/sys:r \
+      --link influxdb:influxdb \
       -e DB_NAME=nodemetrics \
       -e DB_USER=root \
       -e DB_PASS=root \
+      -e DATA_CLEAN_SINCE 1w
       tutum/node-metrics
 ```
 
 **Arguments**
 
 ```
-    INFLUXDB_PORT_8086_TCP_ADDR     ip address of influxdb
-    INFLUXDB_PORT_8086_TCP_PORT     port number of influxdb
     DB_NAME                         name of the influx database, "nodemetrics" by default
     DB_USER                         user of influxdb, "root" by default
     DB_PASS                         pass of influxdb, "INFLUXDB_ENV_INFLUXDB_INIT_PWD" if specified, "root" by default
