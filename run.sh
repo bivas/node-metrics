@@ -62,7 +62,6 @@ LIST_CQ_STR="curl -sGkfL '${CONTAINER_METRICS_URL}' --data-urlencode 'q=list con
 LIST_CQ=$(eval ${LIST_CQ_STR})
 FIELD="container_name, mean(cpu_cumulative_usage) as cpu_cumulative_usage, mean(memory_working_set) as memory_working_set, max(rx_bytes) as rx_bytes, max(tx_bytes) as tx_bytes from stats group by container_name,"
 
-add_ac "${LIST_CQ}" "${CONTAINER_METRICS_URL}" "${FIELD}" "1m" "1 minute"
 add_ac "${LIST_CQ}" "${CONTAINER_METRICS_URL}" "${FIELD}" "5m" "5 minutes"
 add_ac "${LIST_CQ}" "${CONTAINER_METRICS_URL}" "${FIELD}" "30m" "30 minutes"
 add_ac "${LIST_CQ}" "${CONTAINER_METRICS_URL}" "${FIELD}" "2h" "2 hours"
@@ -74,7 +73,6 @@ LIST_CQ_STR="curl -sGkfL '${NODE_METRICS_URL}' --data-urlencode 'q=list continuo
 LIST_CQ=$(eval ${LIST_CQ_STR})
 FIELD="mean(cpuusage) as cpuusage, mean(diskused) as diskused, max(disksize) as disksize, mean(memused) as memused, max(memsize) as memsize, max(rxbytes) as rxbytes, max(txbytes) as txbytes from stats group by"
 
-add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "1m" "1 minute"
 add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "5m" "5 minutes"
 add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "30m" "30 minutes"
 add_ac "${LIST_CQ}" "${NODE_METRICS_URL}" "${FIELD}" "2h" "2 hours"
