@@ -17,7 +17,7 @@ MEM_FREE=$(echo "${MSG}" | awk 'NR==3 {print $4}')
 SWAP_SIZE=$(echo "${MSG}" | awk 'NR==4 {print $2}')
 SWAP_USED=$(echo "${MSG}" | awk 'NR==4 {print $3}')
 SWAP_FREE=$(echo "${MSG}" | awk 'NR==4 {print $4}')
-CPU_USAGE=$(echo "100 - $(mpstat | tail -n 1 | awk '{print $NF}')" | bc | sed 's/^\./0./')
+CPU_USAGE=$(echo "100 - $(mpstat 60 1 | tail -n 1 | awk '{print $NF}')" | bc | sed 's/^\./0./')
 
 # Network Metrics
 RX_BYTES=$(cat /sys/class/net/eth?/statistics/rx_bytes | head -n 1)
