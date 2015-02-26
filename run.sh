@@ -48,12 +48,31 @@ NODE_METRICS_URL="http://${DBHOST}:${DBPORT}/db/${DBNAME}/series?u=${DBUSER}&p=$
 CONTAINER_METRICS_URL="http://${DBHOST}:${DBPORT}/db/cadvisor/series?u=${DBUSER}&p=${DBPASS}"
 
 #Testing if IfluxDB is reachable
-echo "Test if InfluxDB is reachable"
-TEST_DB="curl -sGkfL '${CONTAINER_METRICS_URL}' --data-urlencode 'q=list series'"
-eval ${TEST_DB} >/dev/null || exit 1
-TEST_DB="curl -sGkfL '${NODE_METRICS_URL}' --data-urlencode 'q=list series'"
-eval ${TEST_DB} >/dev/null || exit 1
-echo "Successfully connect to InfluxDB"
+INFLUXDB_CONNECTION_TEST_MAX_RETRIES=${INFLUXDB_CONNECTION_TEST_MAX_RETRIES:-1}
+INFLUXDB_CONNECTION_FAIL=0
+echo -n "Test if InfluxDB is reachable "
+while [ $INFLUXDB_CONNECTION_TEST_MAX_RETRIES -gt 0 ]; then
+    echo -n "."
+    TEST_DB="curl -sGkfL '${CONTAINER_METRICS_URL}' --data-urlencode 'q=list series'"
+    eval ${TEST_DB} >/dev/null || INFLUXDB_CONNECTION_FAIL=1
+    TEST_DB="curl -sGkfL '${NODE_METRICS_URL}' --data-urlencode 'q=list series'"
+    eval ${TEST_DB} >/dev/null || INFLUXDB_CONNECTION_FAIL=1
+    if [ $INFLUXDB_CONNECTION_FAIL -eq 0 ]; then
+        INFLUXDB_CONNECTION_TEST_MAX_RETRIES=0
+    else
+        let "INFLUXDB_CONNECTION_TEST_MAX_RETRIES=$INFLUXDB_CONNECTION_TEST_MAX_RETRIES-1"
+        INFLUXDB_CONNECTION_FAIL=0
+        sleep 5s
+    fi
+done
+
+echo " "
+if [ $INFLUXDB_CONNECTION_FAIL -eq 0 ]; then
+    echo "Successfully connect to InfluxDB"
+else
+    echo "Failed to connect to InfluxDB"
+    exit 1
+fi
 
 
 # Add contiuous queries to container metrics
