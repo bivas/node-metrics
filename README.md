@@ -23,6 +23,7 @@ tutum/node-metrics
     DB_PASS                         pass of influxdb, "INFLUXDB_ENV_INFLUXDB_INIT_PWD" if specified, "root" by default
     DATA_CLEAN_SINCE                clean old metrics since "1w"(default: 1 week) ago. Please modify crontab.conf accordingly if you change this value
     INFLUXDB_ENV_INFLUXDB_INIT_PWD      Inherited variable from influxdb, changing default password of influxdb
+    INFLUXDB_CONNECTION_TEST_MAX_RETRIES InfluxDB Connection test retries before failing execution (sleeping 5 seconds between tests), 1 by default
 ```
 
 **INFLUXDB DATA SAMPLE**
